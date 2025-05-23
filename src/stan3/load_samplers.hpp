@@ -6,6 +6,7 @@
 #include <stan3/metric_type.hpp>
 
 #include <stan/callbacks/logger.hpp>
+#include <stan/callbacks/stream_logger.hpp>
 #include <stan/callbacks/writer.hpp>
 #include <stan/io/var_context.hpp>
 #include <stan/io/array_var_context.hpp>
@@ -73,18 +74,25 @@ template <metric_t MetricType, typename SamplerType, typename Model>
 void configure_metric(SamplerType& sampler, const Model& model,
                      const stan::io::var_context* metric_context,
                      stan::callbacks::logger& logger) {
+  bool read = true;
+  if (metric_context) {
+    std::vector<std::string> names;
+    metric_context->names_r(names);
+    if (names.empty()) {
+      read = false;
+    }
+  }
   if constexpr (MetricType == metric_t::DIAG_E) {
     Eigen::VectorXd inv_metric;
     try {
-      if (metric_context) {
+      if (metric_context && read) {
         inv_metric = stan::services::util::read_diag_inv_metric(
           *metric_context, model.num_params_r(), logger);
       } else {
         inv_metric = Eigen::VectorXd::Ones(model.num_params_r());
       }
     } catch (const std::exception& e) {
-      // If reading fails, fall back to unit metric
-      logger.info("Using unit diagonal metric (failed to read provided metric)");
+      logger.warn("Using unit diagonal metric (failed to read provided metric)");
       inv_metric = Eigen::VectorXd::Ones(model.num_params_r());
     }
     stan::services::util::validate_diag_inv_metric(inv_metric, logger);
@@ -92,15 +100,14 @@ void configure_metric(SamplerType& sampler, const Model& model,
   } else if constexpr (MetricType == metric_t::DENSE_E) {
     Eigen::MatrixXd inv_metric;
     try {
-      if (metric_context) {
+      if (metric_context && read) {
         inv_metric = stan::services::util::read_dense_inv_metric(
           *metric_context, model.num_params_r(), logger);
       } else {
         inv_metric = Eigen::MatrixXd::Identity(model.num_params_r(), model.num_params_r());
       }
     } catch (const std::exception& e) {
-      // If reading fails, fall back to identity matrix
-      logger.info("Using identity matrix metric (failed to read provided metric)");
+      logger.warn("Using identity matrix metric (failed to read provided metric)");
       inv_metric = Eigen::MatrixXd::Identity(model.num_params_r(), model.num_params_r());
     }
     stan::services::util::validate_dense_inv_metric(inv_metric, logger);
@@ -234,7 +241,7 @@ create_samplers(Model& model,
   }
 }
 
-/* Helper visitor to run samplers regardless of their type */
+/* Helper visitor to run samplers regardless of their type - SEQUENTIAL VERSION */
 template <typename Model>
 class sampler_runner {
 public:
@@ -250,7 +257,7 @@ public:
     if (args_.num_chains == 1) {
       run_single_chain(config, 0);
     } else {
-      run_multiple_chains(config);
+      run_multiple_chains_sequential(config);
     }
   }
 
@@ -281,15 +288,20 @@ private:
   }
   
   template <typename ConfigType>
-  void run_multiple_chains(ConfigType& config) {
-    tbb::parallel_for(
-      tbb::blocked_range<size_t>(0, args_.num_chains, 1),
-      [this, &config](const tbb::blocked_range<size_t>& r) {
-        for (size_t i = r.begin(); i != r.end(); ++i) {
-          run_single_chain(config, i);
-        }
-      },
-      tbb::simple_partitioner());
+  void run_multiple_chains_sequential(ConfigType& config) {
+    // Simple sequential loop - run each chain one after another
+    for (size_t i = 0; i < args_.num_chains; ++i) {
+      std::cout << "Starting chain " << (i + 1) << " of " << args_.num_chains << std::endl;
+      
+      try {
+        run_single_chain(config, i);
+        std::cout << "Completed chain " << (i + 1) << std::endl;
+      } catch (const std::exception& e) {
+        std::cerr << "Chain " << (i + 1) << " failed: " << e.what() << std::endl;
+        throw;
+      }
+    }
+    std::cout << "All " << args_.num_chains << " chains completed successfully." << std::endl;
   }
 
   Model& model_;
