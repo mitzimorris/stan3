@@ -1,0 +1,93 @@
+##
+# Build test executables
+##
+# Google Test setup
+GTEST_ROOT = stan/lib/stan_math/lib/benchmark_1.5.1/googletest/googletest
+GTEST_INCLUDES = -I $(GTEST_ROOT)/include -I $(GTEST_ROOT)
+GTEST_OBJS = $(GTEST_ROOT)/gtest-all.o $(GTEST_ROOT)/gtest_main.o
+
+# Compile Google Test sources (do this once)
+$(GTEST_ROOT)/gtest-all.o: $(GTEST_ROOT)/src/gtest-all.cc
+	$(CXX) $(CXXFLAGS) $(GTEST_INCLUDES) -c $< -o $@
+
+$(GTEST_ROOT)/gtest_main.o: $(GTEST_ROOT)/src/gtest_main.cc  
+	$(CXX) $(CXXFLAGS) $(GTEST_INCLUDES) -c $< -o $@
+
+# Set flags for test targets (both object and executable)
+test/%.o : CXXFLAGS += $(CXXFLAGS_GTEST)
+test/%.o : CPPFLAGS += $(CPPFLAGS_GTEST)
+test/%.o : INC += $(GTEST_INCLUDES) -I $(RAPIDJSON)
+
+test/%$(EXE) : CXXFLAGS += $(GTEST_INCLUDES) 
+test/%$(EXE) : CPPFLAGS +=  $(GTEST_INCLUDES) 
+test/%$(EXE) : INC += -I $(RAPIDJSON) $(GTEST_INCLUDES) 
+
+# Build rule for test executables (FIXED: use test/%.o not src/test/%.o)
+test/%$(EXE) : test/%.o $(GTEST_OBJS) $(SUNDIALS_TARGETS) $(TBB_TARGETS)
+	$(LINK.cpp) $< $(GTEST_OBJS) $(LDLIBS) $(OUTPUT_OPTION)
+
+# Build rule for test executables
+test/%$(EXE) : src/test/%.o $(GTEST_OBJS) $(SUNDIALS_TARGETS) $(TBB_TARGETS)
+	$(LINK.cpp) $< $(GTEST_OBJS) $(LDLIBS) $(OUTPUT_OPTION)
+
+# Object file rule  
+test/%.o : src/test/%.cpp
+	@mkdir -p $(dir $@)
+	$(COMPILE.cpp) $(GTEST_INCLUDES) $(OUTPUT_OPTION) $<
+
+
+##
+# Customization for generating dependencies
+##
+src/test/%.d : CXXFLAGS += $(CXXFLAGS_GTEST)
+src/test/%.d : CPPFLAGS += $(CPPFLAGS_GTEST)
+src/test/%.d : INC_FIRST = -I $(if $(STAN),$(STAN)/src,src) -I $(if $(STAN),$(STAN),.) -I $(RAPIDJSON)
+src/test/%.d : INC += $(INC_GTEST)
+src/test/%.d : DEPTARGETS = -MT $(patsubst src/test/%.d,test/%.o,$@) -MT $@
+
+ifneq ($(filter test/%$(EXE),$(MAKECMDGOALS)),)
+-include $(patsubst test/%$(EXE),src/test/%.d,$(filter test/%,$(MAKECMDGOALS)))
+endif
+
+
+############################################################
+#
+# Target to verify header files within stan3 has
+# enough include calls
+##
+HEADER_TESTS := $(addsuffix -test,$(call findfiles,src/stan3,*.hpp))
+
+ifeq ($(OS),Windows_NT)
+  DEV_NULL = nul
+else
+  DEV_NULL = /dev/null
+endif
+
+%.hpp-test : %.hpp test/dummy.cpp
+	$(COMPILE.cpp) -O0 -include $^ -o $(DEV_NULL)
+
+test/dummy.cpp:
+	@touch $@
+	@echo "int main() {return 0;}" >> $@
+
+.PHONY: test-headers
+test-headers: $(HEADER_TESTS)
+
+ifneq ($(filter test/%,$(MAKECMDGOALS)),)
+
+include src/stan3/main.d
+
+TEST_SRCS = $(wildcard src/test/unit/*.cpp)
+TEST_DEPFILES := $(TEST_SRCS:src/test/%.cpp=test/%.d)
+$(TEST_DEPFILES):
+include $(wildcard $(TEST_DEPFILES))
+endif
+
+############################################################
+##
+# Use the stanc compiler to generate C++ from Stan programs
+##
+TEST_MODELS = $(call findfiles,src/test/test-models,*.stan)
+$(patsubst src/%.stan,%.hpp,$(TEST_MODELS)) : test/test-models/%.hpp : src/test/test-models/%.stan bin/stanc$(EXE)
+	@mkdir -p $(dir $@)
+	$(WINE) bin/stanc$(EXE) $(STANCFLAGS) $< --o=$@
