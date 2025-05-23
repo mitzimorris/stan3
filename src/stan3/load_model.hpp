@@ -2,8 +2,6 @@
 #define STAN3_LOAD_MODEL_HPP
 
 #include <stan/model/model_base.hpp>
-#include <stan/run/config_algorithm.hpp>
-#include <stan/run/config_model_inits.hpp>
 #include <boost/random/mixmax.hpp>
 
 #include <iostream>
