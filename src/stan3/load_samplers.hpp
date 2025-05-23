@@ -2,6 +2,7 @@
 #define STAN3_LOAD_SAMPLERS_HPP
 
 #include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/hmc_output_writers.hpp>
 #include <stan3/metric_type.hpp>
 
 #include <stan/callbacks/logger.hpp>
@@ -179,9 +180,10 @@ load_samplers(Model& model,
       stan::callbacks::writer dummy_writer;
       stan::callbacks::writer* writer_to_use = 
         (init_writers[i] != nullptr) ? init_writers[i] : &dummy_writer;
-      
+
+      // initialize with timing message == false      
       auto init_params = stan::services::util::initialize(
-        model, *init_context, config.rngs[i], args.init_radius, true, logger,
+        model, *init_context, config.rngs[i], args.init_radius, false, logger,  
         *writer_to_use);
       config.init_params.push_back(std::move(init_params));
       
@@ -298,6 +300,9 @@ private:
 };
 
 /* Convenience function to create and run samplers */
+  // Create init writers from the writers struct
+  // Create samplers
+  // Run samplers using visitor pattern
 template <typename Model>
 void run_samplers(Model& model,
                   const hmc_nuts_args& args,
@@ -307,7 +312,6 @@ void run_samplers(Model& model,
                   stan::callbacks::interrupt& interrupt,
                   stan::callbacks::logger& logger) {
   
-  // Create init writers from the writers struct
   std::vector<stan::callbacks::writer*> init_writers;
   init_writers.reserve(args.num_chains);
   
@@ -315,12 +319,8 @@ void run_samplers(Model& model,
     init_writers.push_back(
       writers[i].start_params_writer ? writers[i].start_params_writer.get() : nullptr);
   }
-  
-  // Create samplers
   auto sampler_configs = create_samplers(model, args, init_contexts, 
                                        metric_contexts, logger, init_writers);
-  
-  // Run samplers using visitor pattern
   sampler_runner runner(model, args, writers, interrupt, logger);
   std::visit(runner, sampler_configs);
 }
