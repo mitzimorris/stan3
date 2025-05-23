@@ -11,10 +11,11 @@ import platform
 import sys
 import subprocess
 import time
+import re
 
 WIN_SFX = '.exe'
 TEST_SFX = '_test.cpp'
-DEBUG = False
+DEBUG = True
 BATCH_SIZE = 50
 
 def usage():
@@ -170,6 +171,7 @@ def main():
         makeMathLibs(j)
 
     # pass 1:  call make to compile test targets
+    print('pass 1')
     for i in range(argsIdx,len(sys.argv)):
         testname = sys.argv[i]
         if DEBUG:
@@ -186,9 +188,13 @@ def main():
             for root, dirs, files in os.walk(testname):
                 if DEBUG:
                     print('make root: %s' % root)
+                modelHpp = modelDependencies(files)
+                if len(modelHpp) > 0:
+                    makeTest(" ".join(modelHpp), j)
                 makeTests(root,files,j)
 
     # pass 2:  run test targets
+    print('pass 2')
     for i in range(argsIdx,len(sys.argv)):
         testname = sys.argv[i]
         if not os.path.isdir(testname):
