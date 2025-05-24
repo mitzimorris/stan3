@@ -1,5 +1,5 @@
-#ifndef STAN3_HMC_NUTS_ARGUMENTS_HPP
-#define STAN3_HMC_NUTS_ARGUMENTS_HPP
+#ifndef STAN3_ARGUMENTS_HPP
+#define STAN3_ARGUMENTS_HPP
 
 #include <CLI11/CLI11.hpp>
 #include <stan3/algorithm_type.hpp>
@@ -22,10 +22,12 @@
 
 namespace stan3 {
 
-/* Command line arguments */
-struct hmc_nuts_args {
-  // Algorithm options
+/* Common arguments for all algorithms */
+struct stan3_args {
+  // Algorithm selection (inferred from subcommand)
   algorithm_t algorithm = algorithm_t::STAN2_HMC;
+  
+  // Common options
   size_t num_chains = 1;
   unsigned int random_seed = 1;
   
@@ -34,6 +36,12 @@ struct hmc_nuts_args {
   std::string data_file;
   std::vector<std::string> init_files;
   
+  // Output options
+  std::string output_dir;
+};
+
+/* HMC-NUTS specific arguments */
+struct hmc_nuts_args : public stan3_args {
   // HMC options
   int num_warmup = 1000;
   int num_samples = 1000;
@@ -46,7 +54,6 @@ struct hmc_nuts_args {
   int max_depth = 10;
 
   // HMC output options
-  std::string output_dir;
   bool save_start_params = false;
   bool save_warmup = false;
   bool save_diagnostics = false;
@@ -62,10 +69,7 @@ struct hmc_nuts_args {
   unsigned int window = 25;
 };
 
-/* Custom validator for JSON input files
- * If no filename specified, set to arg value to empty string,
- * else check that file exists, is readable, and has correct opening '{'.
- */
+/* Custom validator for JSON input files */
 struct JSONFileValidator : public CLI::Validator {
   JSONFileValidator() {
     name_ = "JSONFile";
@@ -105,17 +109,6 @@ struct JSONFileVectorValidator : public CLI::Validator {
   }
 };
 
-/* Function to create string-to-enum mapping for algorithm type */
-inline std::map<std::string, algorithm_t> create_algorithm_map() {
-  return {
-    {"hmc", algorithm_t::STAN2_HMC},
-    {"mle", algorithm_t::MLE},
-    {"pathfinder", algorithm_t::PATHFINDER},
-    {"advi", algorithm_t::ADVI},
-    {"gq", algorithm_t::STANDALONE_GQ}
-  };
-}
-
 /* Function to create string-to-enum mapping for metric type */
 inline std::map<std::string, metric_t> create_metric_map() {
   return {
@@ -153,45 +146,45 @@ inline void cleanup_temp_dir(const std::string& dir_path) {
   }
 }
 
-/* Function to setup CLI options */
-inline void setup_cli(CLI::App& app, hmc_nuts_args& args) {
-  auto algorithm_opts = app.add_option_group("Algorithm Options");
-  auto model_inits_opts = app.add_option_group("Model Options");
-  auto hmc_opts = app.add_option_group("HMC Options");
-  auto nuts_opts = app.add_option_group("NUTS Adaptation Options");
-  auto output_opts = app.add_option_group("Output Options");
-  
-  // Algorithm options
-  auto algorithm_map = create_algorithm_map();
-  algorithm_opts->add_option("--algorithm", args.algorithm, 
-                             "Inference algorithm to run")
-    ->transform(CLI::CheckedTransformer(algorithm_map, CLI::ignore_case))
-    ->capture_default_str();
-  
-  algorithm_opts->add_option("--chains", args.num_chains, 
-                             "Number of Markov chains to run")
+/* Function to setup common CLI options */
+inline void setup_common_options(CLI::App& app, stan3_args& args) {
+  app.add_option("--chains", args.num_chains, 
+                 "Number of inference chains to run")
     ->check(CLI::PositiveNumber)
     ->capture_default_str();
   
-  algorithm_opts->add_option("--seed", args.random_seed, 
-                             "Random seed for initialization")
+  app.add_option("--seed", args.random_seed, 
+                 "Random seed for initialization")
     ->capture_default_str();
   
-  // Model options
-  model_inits_opts->add_option("--data", args.data_file, 
-                               "Data inputs file")
+  app.add_option("--data", args.data_file, 
+                 "Data inputs file")
     ->check(JSONFileValidator{});
   
-  model_inits_opts->add_option("--init-radius", args.init_radius, 
-                               "Initial radius for parameter initialization")
+  app.add_option("--init-radius", args.init_radius, 
+                 "Initial radius for parameter initialization")
     ->check(CLI::PositiveNumber)
     ->capture_default_str();
   
-  model_inits_opts->add_option("--inits", args.init_files, 
-                               "Initial parameter values. "
-                               "Comma-separated for multiple files or repeat option for per-chain files.")
+  app.add_option("--inits", args.init_files, 
+                 "Initial parameter values. "
+                 "Comma-separated for multiple files or repeat option for per-chain files.")
     ->check(JSONFileVectorValidator{});
 
+  app.add_option("-o,--output-dir", args.output_dir, 
+                 "Directory for all output files")
+    ->default_function([]() { return create_temp_output_dir(); })
+    ->capture_default_str();
+}
+
+/* Function to setup HMC-NUTS subcommand */
+inline CLI::App* setup_hmc_subcommand(CLI::App& app, hmc_nuts_args& args) {
+  auto hmc_sub = app.add_subcommand("hmc", "Hamiltonian Monte Carlo with NUTS");
+  
+  auto hmc_opts = hmc_sub->add_option_group("HMC Options");
+  auto nuts_opts = hmc_sub->add_option_group("NUTS Adaptation Options");
+  auto output_opts = hmc_sub->add_option_group("Output Options");
+  
   // HMC options
   auto metric_map = create_metric_map();
   hmc_opts->add_option("--metric-type", args.metric_type, 
@@ -275,11 +268,6 @@ inline void setup_cli(CLI::App& app, hmc_nuts_args& args) {
     ->capture_default_str();
   
   // Output options
-  output_opts->add_option("-o,--output-dir", args.output_dir, 
-                          "Output directory for samples")
-    ->default_function([]() { return create_temp_output_dir(); })
-    ->capture_default_str();
-  
   output_opts->add_flag("--save-inits", args.save_start_params,
                         "Save initial parameter values?")
     ->capture_default_str();
@@ -295,11 +283,43 @@ inline void setup_cli(CLI::App& app, hmc_nuts_args& args) {
   output_opts->add_flag("--save-diag", args.save_diagnostics, 
                         "Save unconstrained parameter values and gradients?")
     ->capture_default_str();
+
+  return hmc_sub;
 }
 
-/* Function for additional validation beyond CLI11 capabilities */
-inline bool validate_arguments(const hmc_nuts_args& args, std::string& error_message) {
-  if (args.thin > args.num_samples) {
+/* Function to setup CLI with all subcommands */
+inline CLI::App* setup_cli(CLI::App& app, stan3_args& base_args, hmc_nuts_args& hmc_args) {
+  app.description("Stan3 - Command line interface for Stan");
+  app.require_subcommand(1);
+  
+  // Setup common options
+  setup_common_options(app, base_args);
+  
+  // Setup subcommands
+  CLI::App* selected_subcommand = nullptr;
+  
+  auto hmc_sub = setup_hmc_subcommand(app, hmc_args);
+  
+  // Add callback to set algorithm type based on selected subcommand
+  hmc_sub->callback([&hmc_args, &base_args, &selected_subcommand, hmc_sub]() {
+    // Copy common args to hmc_args
+    static_cast<stan3_args&>(hmc_args) = base_args;
+    hmc_args.algorithm = algorithm_t::STAN2_HMC;
+    selected_subcommand = hmc_sub;
+  });
+  
+  // Add other subcommands here in the future:
+  // auto mle_sub = app.add_subcommand("mle", "Maximum Likelihood Estimation");
+  // auto pathfinder_sub = app.add_subcommand("pathfinder", "Pathfinder approximation");
+  // auto advi_sub = app.add_subcommand("advi", "Automatic Differentiation Variational Inference");
+  // auto gq_sub = app.add_subcommand("gq", "Generate Quantities");
+  
+  return selected_subcommand;
+}
+
+/* Function for HMC-NUTS specific validation */
+inline bool validate_hmc_arguments(const hmc_nuts_args& args, std::string& error_message) {
+  if (args.num_samples > 0 && args.thin > args.num_samples) {
     error_message = "Error: thin (" + std::to_string(args.thin) + 
       ") cannot exceed --samples (" + 
       std::to_string(args.num_samples) + ")";
@@ -330,14 +350,14 @@ inline bool validate_arguments(const hmc_nuts_args& args, std::string& error_mes
 }
 
 /* Function to finalize arguments after CLI parsing */
-inline void finalize_arguments(hmc_nuts_args& args) {
+inline void finalize_arguments(stan3_args& args) {
   if (args.output_dir.empty()) {
     args.output_dir = create_temp_output_dir();
   }
 }
 
 /* Helper function to get init file for a specific chain */
-inline std::string get_init_file_for_chain(const hmc_nuts_args& args, size_t chain_idx) {
+inline std::string get_init_file_for_chain(const stan3_args& args, size_t chain_idx) {
   if (args.init_files.empty()) {
     return "";
   }
@@ -347,7 +367,7 @@ inline std::string get_init_file_for_chain(const hmc_nuts_args& args, size_t cha
   return args.init_files[chain_idx];
 }
 
-/* Helper function to get metric file for a specific chain */
+/* Helper function to get metric file for a specific chain (HMC-specific) */
 inline std::string get_metric_file_for_chain(const hmc_nuts_args& args, size_t chain_idx) {
   if (args.metric_files.empty()) {
     return "";
@@ -360,4 +380,4 @@ inline std::string get_metric_file_for_chain(const hmc_nuts_args& args, size_t c
 
 }  // namespace stan3
 
-#endif  // STAN3_HMC_NUTS_ARGUMENTS_HPP
+#endif  // STAN3_ARGUMENTS_HPP

@@ -2,7 +2,7 @@
 #include <string>
 #include <CLI11/CLI11.hpp>
 #include <stan3/algorithm_type.hpp>
-#include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/arguments.hpp>
 #include <stan3/load_model.hpp>
 #include <stan3/metric_type.hpp>
 #include <stan3/run_hmc_nuts.hpp>
@@ -12,45 +12,44 @@ int main(int argc, char** argv) {
     // Create CLI app
     CLI::App app{"Stan3 - Command line interface for Stan"};
     
-    // Arguments struct to store parsed values
-    stan3::hmc_nuts_args args;
+    // Arguments structs
+    stan3::stan3_args base_args;
+    stan3::hmc_nuts_args hmc_args;
     
-    // Setup CLI options
-    stan3::setup_cli(app, args);
+    // Setup CLI options and subcommands
+    CLI::App* selected_subcommand = stan3::setup_cli(app, base_args, hmc_args);
     
     // Parse command line
     CLI11_PARSE(app, argc, argv);
 
+    // Determine which algorithm was selected and validate accordingly
     std::string error_message;
-    if (!stan3::validate_arguments(args, error_message)) {
+    bool validation_passed = true;
+    
+    if (app.got_subcommand("hmc")) {
+        validation_passed = stan3::validate_hmc_arguments(hmc_args, error_message);
+        stan3::finalize_arguments(hmc_args);
+    }
+    // Add validation for other algorithms here as they're implemented
+    
+    if (!validation_passed) {
         std::cerr << error_message << std::endl;
         return 1;
     }
-    stan3::finalize_arguments(args);
+    
     std::cout << "config" << std::endl << app.config_to_str() << std::endl;
 
-    // Load model
-    stan::model::model_base& model = load_model(args);
+    // Load model (using base_args for common options like data_file)
+    stan::model::model_base& model = stan3::load_model(
+        app.got_subcommand("hmc") ? 
+        static_cast<const stan3::stan3_args&>(hmc_args) : base_args);
 
     // Dispatch to the appropriate algorithm
-    switch (args.algorithm) {
-        case stan3::algorithm_t::STAN2_HMC:
-	  return stan3::run_hmc(args, model);
-        
-        case stan3::algorithm_t::MLE:
-            return stan3::run_mle();
-        
-        case stan3::algorithm_t::PATHFINDER:
-            return stan3::run_pathfinder();
-        
-        case stan3::algorithm_t::ADVI:
-            return stan3::run_advi();
-        
-        case stan3::algorithm_t::STANDALONE_GQ:
-            return stan3::run_gq();
-        
-        default:
-            std::cerr << "Error: Unknown algorithm selected" << std::endl;
-            return 1;
+    if (app.got_subcommand("hmc")) {
+        return stan3::run_hmc(hmc_args, model);
+    } else {
+        // Handle other algorithms when they're implemented
+        std::cerr << "Error: No algorithm subcommand selected" << std::endl;
+        return 1;
     }
 }

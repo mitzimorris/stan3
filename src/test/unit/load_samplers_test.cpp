@@ -1,5 +1,5 @@
 #include <stan3/load_samplers.hpp>
-#include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/arguments.hpp>
 #include <stan3/read_json_data.hpp>
 
 #include <test/test-models/bernoulli.hpp>

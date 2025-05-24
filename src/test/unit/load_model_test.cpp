@@ -1,5 +1,5 @@
 #include <stan3/load_model.hpp>
-#include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/arguments.hpp>
 
 #include <test/test-models/bernoulli.hpp>
 
@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 
 TEST(LoadModelTest, LoadModelWithValidData) {
-  stan3::hmc_nuts_args args;
+  stan3::stan3_args args;
   args.data_file = "src/test/test-models/bernoulli.data.json";
   args.random_seed = 12345;
 
@@ -31,7 +31,7 @@ TEST(LoadModelTest, LoadModelWithValidData) {
 }
 
 TEST(LoadModelTest, LoadModelWithNonexistentFile) {
-  stan3::hmc_nuts_args args;
+  stan3::stan3_args args;
   args.data_file = "nonexistent_file.json";
   args.random_seed = 12345;
   
@@ -41,7 +41,7 @@ TEST(LoadModelTest, LoadModelWithNonexistentFile) {
 }
 
 TEST(LoadModelTest, LoadModelWithInvalidJSON) {
-  stan3::hmc_nuts_args args;
+  stan3::stan3_args args;
   args.data_file = "src/test/json/invalid_data.json";
   args.random_seed = 12345;
   
@@ -49,3 +49,17 @@ TEST(LoadModelTest, LoadModelWithInvalidJSON) {
     stan3::load_model(args);
   }, std::invalid_argument);
 }
+
+TEST(LoadModelTest, LoadModelWithHmcArgs) {
+  // Test that function works with derived HMC args via inheritance
+  stan3::hmc_nuts_args hmc_args;
+  hmc_args.data_file = "src/test/test-models/bernoulli.data.json";
+  hmc_args.random_seed = 54321;
+  
+  // Should work via polymorphism
+  auto& model = stan3::load_model(hmc_args);
+  
+  EXPECT_FALSE(model.model_name().empty());
+  EXPECT_EQ(model.model_name(), "bernoulli_model");
+}
+

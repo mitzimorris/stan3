@@ -3,7 +3,7 @@
 
 #include <stan/callbacks/json_writer.hpp>
 #include <stan/callbacks/unique_stream_writer.hpp>
-#include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/arguments.hpp>
 
 #include <chrono>
 #include <filesystem>

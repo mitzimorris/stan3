@@ -1,7 +1,7 @@
 #ifndef STAN3_LOAD_SAMPLERS_HPP
 #define STAN3_LOAD_SAMPLERS_HPP
 
-#include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/arguments.hpp>
 #include <stan3/hmc_output_writers.hpp>
 #include <stan3/metric_type.hpp>
 

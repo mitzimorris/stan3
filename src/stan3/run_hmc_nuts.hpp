@@ -2,7 +2,7 @@
 #define STAN3_RUN_HMC_HPP
 
 #include <stan3/algorithm_type.hpp>
-#include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/arguments.hpp>
 #include <stan3/hmc_output_writers.hpp>
 #include <stan3/load_samplers.hpp>
 #include <stan3/run_samplers.hpp>
