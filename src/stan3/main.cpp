@@ -3,6 +3,7 @@
 #include <CLI11/CLI11.hpp>
 #include <stan3/algorithm_type.hpp>
 #include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/load_model.hpp>
 #include <stan3/metric_type.hpp>
 #include <stan3/run_hmc_nuts.hpp>
 #include <stan3/run_others.hpp>
@@ -28,10 +29,13 @@ int main(int argc, char** argv) {
     stan3::finalize_arguments(args);
     std::cout << "config" << std::endl << app.config_to_str() << std::endl;
 
+    // Load model
+    stan::model::model_base& model = load_model(args);
+
     // Dispatch to the appropriate algorithm
     switch (args.algorithm) {
         case stan3::algorithm_t::STAN2_HMC:
-            return stan3::run_hmc(args);
+	  return stan3::run_hmc(args, model);
         
         case stan3::algorithm_t::MLE:
             return stan3::run_mle();

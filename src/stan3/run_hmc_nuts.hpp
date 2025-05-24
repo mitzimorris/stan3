@@ -4,22 +4,18 @@
 #include <stan3/algorithm_type.hpp>
 #include <stan3/hmc_nuts_arguments.hpp>
 #include <stan3/hmc_output_writers.hpp>
-#include <stan3/load_model.hpp>
 #include <stan3/load_samplers.hpp>
+#include <stan3/run_samplers.hpp>
 #include <stan3/metric_type.hpp>
 #include <stan3/read_json_data.hpp>
 
+#include <stan/callbacks/interrupt.hpp>
 #include <stan/callbacks/writer.hpp>
 #include <stan/callbacks/stream_logger.hpp>
 #include <stan/callbacks/unique_stream_writer.hpp>
 #include <stan/callbacks/json_writer.hpp>
-#include <stan/services/util/create_rng.hpp>
-#include <stan/services/util/initialize.hpp>
-#include <stan/services/util/run_adaptive_sampler.hpp>
-#include <stan/services/sample/fixed_param.hpp>
 
 #include <boost/random/mixmax.hpp>
-#include <tbb/parallel_for.h>
 
 #include <CLI11/CLI11.hpp>
 #include <map>
@@ -33,28 +29,14 @@ using rng_t = boost::random::mixmax;
 namespace stan3 {
 
 /* Function to run HMC algorithm */
-template <bool Jacobian = true>
-int run_hmc(const hmc_nuts_args& args) {
+template <bool Jacobian = true, class Model>
+int run_hmc(const hmc_nuts_args& args, Model& model) {
   std::stringstream err_msg;
   try {
     stan::callbacks::interrupt interrupt;
     stan::callbacks::stream_logger logger(std::cout, std::cout, std::cout,
                                          std::cerr, std::cerr);
-
-    // Read and validate data
-    std::shared_ptr<const stan::io::var_context> data_context;
-    try {
-      data_context = stan3::read_json_data(args.data_file);
-    } catch (const std::exception &e) {
-      err_msg << "Error reading input data, "
-              << e.what() << std::endl;
-      throw std::invalid_argument(err_msg.str());
-    }
-
-    // Load model
-    stan::io::var_context* raw_context = const_cast<stan::io::var_context*>(data_context.get());
-    auto model = load_model(*raw_context, args.random_seed);
-    std::string model_name = model->model_name();
+    std::string model_name = model.model_name();
 
     // Configure outputs
     std::vector<hmc_nuts_writers> writers;
@@ -67,7 +49,7 @@ int run_hmc(const hmc_nuts_args& args) {
     }
 
     std::vector<std::string> uparam_names;
-    model->unconstrained_param_names(uparam_names, false, false);
+    model.unconstrained_param_names(uparam_names, false, false);
 
     if (uparam_names.empty()) {
       // Handle fixed parameter models
@@ -78,9 +60,7 @@ int run_hmc(const hmc_nuts_args& args) {
       std::cout << "Fixed parameter model detected - no sampling required." << std::endl;
       return 0;
     } else {
-      stan::model::model_base* raw_model = const_cast<stan::model::model_base*>(model.get());
-
-      // 1. Read pre-specified parameter values
+      // assemble initial param values, initial inverse metric
       std::vector<std::shared_ptr<const stan::io::var_context>> init_contexts;
       init_contexts.reserve(args.num_chains);
       for (size_t i = 0; i < args.num_chains; ++i) {
@@ -94,8 +74,6 @@ int run_hmc(const hmc_nuts_args& args) {
           throw std::invalid_argument(err_msg.str());
         }
       }
-
-      // 2. Read pre-specified mass matrix
       std::vector<std::shared_ptr<const stan::io::var_context>> metric_contexts;
       metric_contexts.reserve(args.num_chains);
       for (size_t i = 0; i < args.num_chains; ++i) {
@@ -109,32 +87,19 @@ int run_hmc(const hmc_nuts_args& args) {
           throw std::invalid_argument(err_msg.str());
         }
       }
-
-      // 3. Create and run samplers using the new load_samplers interface
       try {
-        run_samplers(*raw_model, args, init_contexts, metric_contexts, 
+        run_samplers(model, args, init_contexts, metric_contexts, 
                     writers, interrupt, logger);
       } catch (const std::exception& e) {
         err_msg << "Error running samplers: " << e.what() << std::endl;
         throw std::runtime_error(err_msg.str());
       }
     }
-        
-    // Print summary information
+
     std::cout << "Sampling completed successfully!" << std::endl;
-    std::cout << "  Chains: " << args.num_chains << std::endl;
     std::cout << "  Output dir: " << args.output_dir << std::endl;
-    std::cout << "  Warmup iterations: " << args.num_warmup << std::endl;
-    std::cout << "  Sampling iterations: " << args.num_samples << std::endl;
-    std::cout << "  Metric type: ";
-    switch (args.metric_type) {
-      case metric_t::UNIT_E: std::cout << "unit_e"; break;
-      case metric_t::DIAG_E: std::cout << "diag_e"; break;
-      case metric_t::DENSE_E: std::cout << "dense_e"; break;
-    }
-    std::cout << std::endl;
-        
     return 0;
+
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;
     return 1;
@@ -142,5 +107,4 @@ int run_hmc(const hmc_nuts_args& args) {
 }
 
 }  // namespace stan3
-
 #endif  // STAN3_RUN_HMC_HPP

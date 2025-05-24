@@ -1,8 +1,10 @@
 #ifndef STAN3_LOAD_MODEL_HPP
 #define STAN3_LOAD_MODEL_HPP
 
+#include <stan3/hmc_nuts_arguments.hpp>
+#include <stan3/read_json_data.hpp>
+#include <stan/io/var_context.hpp>
 #include <stan/model/model_base.hpp>
-#include <boost/random/mixmax.hpp>
 
 #include <iostream>
 #include <memory>
@@ -18,25 +20,25 @@ extern stan::model::model_base& new_model(stan::io::var_context& data_context,
 
 namespace stan3 {
 
-/**
- * Instantiates a model given data and a specified random seed.
- * 
- * @param config_alg Algorithm configuration containing random seed
- * @param config_model Model configuration containing input data
- * @return instantiated model
- */
-std::unique_ptr<stan::model::model_base>
-load_model(stan::io::var_context& data_context,
-	   unsigned int seed) {
+stan::model::model_base&
+load_model(const hmc_nuts_args& args) {
   std::stringstream err_msg;
-  auto& model_ref = ::new_model(data_context, seed, &err_msg);
-  auto model_ptr = &model_ref;
+
+  std::shared_ptr<const stan::io::var_context> data_context;
+  try {
+    data_context = stan3::read_json_data(args.data_file);
+  } catch (const std::exception &e) {
+    err_msg << "Error reading input data, "
+	    << e.what() << std::endl;
+    throw std::invalid_argument(err_msg.str());
+  }
+  stan::io::var_context* raw_context = const_cast<stan::io::var_context*>(data_context.get());
+  auto& model = ::new_model(*raw_context, args.random_seed, &err_msg);
   if (!err_msg.str().empty()) {
     throw std::runtime_error("Error in new_model: " + err_msg.str());
-  } 
-  return std::unique_ptr<stan::model::model_base>(model_ptr);
+  }
+  return model;
 }
 
 }  // namespace stan3
-
 #endif  // STAN3_LOAD_MODEL_HPP
