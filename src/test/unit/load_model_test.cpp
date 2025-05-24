@@ -1,43 +1,51 @@
 #include <stan3/load_model.hpp>
-#include <stan3/read_json_data.hpp>
-#include <stan/io/empty_var_context.hpp>
+#include <stan3/hmc_nuts_arguments.hpp>
+
 #include <test/test-models/bernoulli.hpp>
 
-#include <filesystem>
-#include <fstream>
-#include <memory>
 #include <stdexcept>
 #include <string>
-#include <sstream>
 
 #include <gtest/gtest.h>
 
 TEST(LoadModelTest, LoadModelWithValidData) {
-  auto data_context = stan3::read_json_data("src/test/test-models/bernoulli.data.json");
-  EXPECT_NO_THROW({
-    auto model = stan3::load_model(*data_context, 12345);
-    EXPECT_TRUE(model != nullptr);
-    EXPECT_FALSE(model->model_name().empty());
-  });
-}
+  stan3::hmc_nuts_args args;
+  args.data_file = "src/test/test-models/bernoulli.data.json";
+  args.random_seed = 12345;
 
-TEST(LoadModelTest, LoadModelWithEmptyData) {
-  stan::io::empty_var_context empty_context;
-  EXPECT_THROW(stan3::load_model(empty_context, 12345), std::runtime_error);
-}
+  auto& model = stan3::load_model(args);
 
-TEST(LoadModelTest, LoadModelParameterCount) {
-  auto data_context = stan3::read_json_data("src/test/test-models/bernoulli.data.json");
-  auto model = stan3::load_model(*data_context, 12345);
-  EXPECT_EQ(model->num_params_r(), 1);
+  EXPECT_FALSE(model.model_name().empty());
+  EXPECT_EQ(model.model_name(), "bernoulli_model");
+  EXPECT_EQ(model.num_params_r(), 1);
   
   std::vector<std::string> param_names;
-  model->constrained_param_names(param_names, false, false);
+  model.constrained_param_names(param_names, false, false);
   EXPECT_FALSE(param_names.empty());
   EXPECT_EQ(param_names[0], "theta");
   
   std::vector<std::string> uparam_names;
-  model->unconstrained_param_names(uparam_names, false, false);
+  model.unconstrained_param_names(uparam_names, false, false);
   EXPECT_FALSE(uparam_names.empty());
   EXPECT_EQ(uparam_names[0], "theta");
+}
+
+TEST(LoadModelTest, LoadModelWithNonexistentFile) {
+  stan3::hmc_nuts_args args;
+  args.data_file = "nonexistent_file.json";
+  args.random_seed = 12345;
+  
+  EXPECT_THROW({
+    stan3::load_model(args);
+  }, std::invalid_argument);
+}
+
+TEST(LoadModelTest, LoadModelWithInvalidJSON) {
+  stan3::hmc_nuts_args args;
+  args.data_file = "src/test/json/invalid_data.json";
+  args.random_seed = 12345;
+  
+  EXPECT_THROW({
+    stan3::load_model(args);
+  }, std::invalid_argument);
 }

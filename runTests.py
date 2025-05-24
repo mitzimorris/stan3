@@ -188,9 +188,6 @@ def main():
             for root, dirs, files in os.walk(testname):
                 if DEBUG:
                     print('make root: %s' % root)
-                modelHpp = modelDependencies(files)
-                if len(modelHpp) > 0:
-                    makeTest(" ".join(modelHpp), j)
                 makeTests(root,files,j)
 
     # pass 2:  run test targets
