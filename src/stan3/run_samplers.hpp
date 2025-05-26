@@ -39,7 +39,7 @@ public:
 
   template <typename ConfigType>
   void operator()(ConfigType& config) {
-    if (args_.num_chains == 1) {
+    if (args_.base.num_chains == 1) {
       run_single_chain(config, 0);
     } else {
       run_multiple_chains_sequential(config);
@@ -69,14 +69,14 @@ private:
       sampler, model_, init_params, args_.num_warmup, args_.num_samples,
       args_.thin, args_.refresh, args_.save_warmup, rng, interrupt_, logger_,
       *writers_[chain_idx].sample_writer, *diagnostic_writer, *metric_writer, 
-      chain_idx + 1, args_.num_chains);
+      chain_idx + 1, args_.base.num_chains);
   }
   
   template <typename ConfigType>
   void run_multiple_chains_sequential(ConfigType& config) {
     // Simple sequential loop - run each chain one after another
-    for (size_t i = 0; i < args_.num_chains; ++i) {
-      std::cout << "Starting chain " << (i + 1) << " of " << args_.num_chains << std::endl;
+    for (size_t i = 0; i < args_.base.num_chains; ++i) {
+      std::cout << "Starting chain " << (i + 1) << " of " << args_.base.num_chains << std::endl;
       
       try {
         run_single_chain(config, i);
@@ -86,7 +86,7 @@ private:
         throw;
       }
     }
-    std::cout << "All " << args_.num_chains << " chains completed successfully." << std::endl;
+    std::cout << "All " << args_.base.num_chains << " chains completed successfully." << std::endl;
   }
 
   Model& model_;
@@ -110,9 +110,9 @@ void run_samplers(Model& model,
                   stan::callbacks::logger& logger) {
   
   std::vector<stan::callbacks::writer*> init_writers;
-  init_writers.reserve(args.num_chains);
+  init_writers.reserve(args.base.num_chains);
   
-  for (size_t i = 0; i < args.num_chains; ++i) {
+  for (size_t i = 0; i < args.base.num_chains; ++i) {
     init_writers.push_back(
       writers[i].start_params_writer ? writers[i].start_params_writer.get() : nullptr);
   }

@@ -28,7 +28,7 @@ namespace stan3 {
  * @throws std::runtime_error if model instantiation fails
  */
 stan::model::model_base&
-load_model(const stan3_args& args) {
+load_model(const model_args& args) {
   std::stringstream err_msg;
 
   std::shared_ptr<const stan::io::var_context> data_context;

@@ -24,7 +24,7 @@ using json_writer = stan::callbacks::json_writer<std::ofstream>;
 /**
  * Generate a timestamp string in format YYYYMMDD_HHMMSS
  */
-std::string generate_timestamp() {
+inline std::string generate_timestamp() {
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
   auto tm = *std::localtime(&time_t);
@@ -44,7 +44,7 @@ std::string generate_timestamp() {
  * @param extension File extension (".csv" or ".json")
  * @return Complete filename
  */
-std::string generate_filename(const std::string& model_name,
+inline std::string generate_filename(const std::string& model_name,
                              const std::string& timestamp, 
                              unsigned int chain_id,
                              const std::string& data_type,
@@ -59,7 +59,7 @@ std::string generate_filename(const std::string& model_name,
  * @param output_dir Path to output directory
  * @throws std::runtime_error if directory cannot be created
  */
-void ensure_output_directory(const std::string& output_dir) {
+inline void ensure_output_directory(const std::string& output_dir) {
   if (!output_dir.empty() && !std::filesystem::exists(output_dir)) {
     if (!std::filesystem::create_directories(output_dir)) {
       throw std::runtime_error("Failed to create output directory: " + output_dir);
@@ -74,7 +74,7 @@ void ensure_output_directory(const std::string& output_dir) {
  * @param filename Filename
  * @return Complete file path
  */
-std::string create_file_path(const std::string& output_dir, 
+inline std::string create_file_path(const std::string& output_dir, 
                             const std::string& filename) {
   if (output_dir.empty()) {
     return filename;
@@ -103,7 +103,7 @@ namespace traits {
 template <typename WriterType>
 typename std::enable_if<traits::is_stream_writer<WriterType>::value, 
                        std::unique_ptr<WriterType>>::type
-create_writer_impl(const std::string& filepath, const std::string& comment_prefix) {
+inline create_writer_impl(const std::string& filepath, const std::string& comment_prefix) {
   auto stream = std::make_unique<std::ofstream>(filepath);
   if (!stream->is_open()) {
     throw std::runtime_error("Cannot open output file: " + filepath);
@@ -117,7 +117,7 @@ create_writer_impl(const std::string& filepath, const std::string& comment_prefi
 template <typename WriterType>
 typename std::enable_if<traits::is_json_writer<WriterType>::value, 
                        std::unique_ptr<WriterType>>::type
-create_writer_impl(const std::string& filepath, const std::string&) {
+inline create_writer_impl(const std::string& filepath, const std::string&) {
   auto stream = std::make_unique<std::ofstream>(filepath);
   if (!stream->is_open()) {
     throw std::runtime_error("Cannot open output file: " + filepath);
@@ -139,7 +139,7 @@ create_writer_impl(const std::string& filepath, const std::string&) {
  */
 template <typename WriterType>
 std::unique_ptr<WriterType>
-create_writer(const std::string& output_dir,
+inline create_writer(const std::string& output_dir,
              const std::string& model_name,
              const std::string& timestamp,
              unsigned int chain_id,

@@ -169,15 +169,15 @@ load_samplers(Model& model,
   using config_type = sampler_config<sampler_type>;
   
   config_type config;
-  config.samplers.reserve(args.num_chains);
-  config.rngs.reserve(args.num_chains);
-  config.init_params.reserve(args.num_chains);
+  config.samplers.reserve(args.base.num_chains);
+  config.rngs.reserve(args.base.num_chains);
+  config.init_params.reserve(args.base.num_chains);
   
   try {
-    for (size_t i = 0; i < args.num_chains; ++i) {
+    for (size_t i = 0; i < args.base.num_chains; ++i) {
       // RNGs passed in?
       // Create RNG for this chain
-      config.rngs.emplace_back(stan::services::util::create_rng(args.random_seed, i + 1));
+      config.rngs.emplace_back(stan::services::util::create_rng(args.base.model.random_seed, i + 1));
       
       // Initialize parameters
       stan::io::var_context* init_context =
@@ -190,7 +190,7 @@ load_samplers(Model& model,
 
       // initialize with timing message == false      
       auto init_params = stan::services::util::initialize(
-        model, *init_context, config.rngs[i], args.init_radius, false, logger,  
+        model, *init_context, config.rngs[i], args.base.init.init_radius, false, logger,  
         *writer_to_use);
       config.init_params.push_back(std::move(init_params));
       

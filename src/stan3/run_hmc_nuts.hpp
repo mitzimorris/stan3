@@ -40,7 +40,7 @@ int run_hmc(const hmc_nuts_args& args, Model& model) {
 
     // Configure outputs
     std::vector<hmc_nuts_writers> writers;
-    if (args.num_chains == 1) {
+    if (args.base.num_chains == 1) {
       auto timestamp = generate_timestamp();
       writers.push_back(create_hmc_nuts_single_chain_writers(
         args, model_name, timestamp, 1));
@@ -62,9 +62,9 @@ int run_hmc(const hmc_nuts_args& args, Model& model) {
     } else {
       // assemble initial param values, initial inverse metric
       std::vector<std::shared_ptr<const stan::io::var_context>> init_contexts;
-      init_contexts.reserve(args.num_chains);
-      for (size_t i = 0; i < args.num_chains; ++i) {
-        std::string init_file = get_init_file_for_chain(args, i);
+      init_contexts.reserve(args.base.num_chains);
+      for (size_t i = 0; i < args.base.num_chains; ++i) {
+        std::string init_file = get_init_file_for_chain(args.base.init, i);
         try {
           auto init_context = stan3::read_json_data(init_file);
           init_contexts.push_back(init_context);
@@ -75,8 +75,8 @@ int run_hmc(const hmc_nuts_args& args, Model& model) {
         }
       }
       std::vector<std::shared_ptr<const stan::io::var_context>> metric_contexts;
-      metric_contexts.reserve(args.num_chains);
-      for (size_t i = 0; i < args.num_chains; ++i) {
+      metric_contexts.reserve(args.base.num_chains);
+      for (size_t i = 0; i < args.base.num_chains; ++i) {
         std::string metric_file = get_metric_file_for_chain(args, i);
         try {
           auto metric_context = stan3::read_json_data(metric_file);
@@ -97,7 +97,7 @@ int run_hmc(const hmc_nuts_args& args, Model& model) {
     }
 
     std::cout << "Sampling completed successfully!" << std::endl;
-    std::cout << "  Output dir: " << args.output_dir << std::endl;
+    std::cout << "  Output dir: " << args.base.output_dir << std::endl;
     return 0;
 
   } catch (const std::exception& e) {
