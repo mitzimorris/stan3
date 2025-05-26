@@ -12,8 +12,8 @@ protected:
     std::filesystem::create_directories(test_dir);
     
     // Setup default test arguments
-    args.output_dir = test_dir.string();
-    args.num_chains = 2;
+    args.base.output_dir = test_dir.string();
+    args.base.num_chains = 2;
     args.save_start_params = false;
     args.save_warmup = false;
     args.save_diagnostics = false;
@@ -148,7 +148,7 @@ TEST_F(HMCOutputWritersTest, CreateSingleChainWritersFilesCreated) {
 }
 
 TEST_F(HMCOutputWritersTest, CreateMultiChainWritersDefault) {
-  args.num_chains = 3;
+  args.base.num_chains = 3;
   std::string model_name = "multi_test";
   
   auto multi_writers = stan3::create_hmc_nuts_multi_chain_writers(
@@ -169,7 +169,7 @@ TEST_F(HMCOutputWritersTest, CreateMultiChainWritersDefault) {
 }
 
 TEST_F(HMCOutputWritersTest, CreateMultiChainWritersAllOptions) {
-  args.num_chains = 2;
+  args.base.num_chains = 2;
   args.save_start_params = true;
   args.save_diagnostics = true;
   args.save_metric = true;
@@ -191,7 +191,7 @@ TEST_F(HMCOutputWritersTest, CreateMultiChainWritersAllOptions) {
 }
 
 TEST_F(HMCOutputWritersTest, CreateMultiChainWritersSingleChain) {
-  args.num_chains = 1;
+  args.base.num_chains = 1;
   std::string model_name = "single_chain_multi";
   
   auto multi_writers = stan3::create_hmc_nuts_multi_chain_writers(
@@ -202,7 +202,7 @@ TEST_F(HMCOutputWritersTest, CreateMultiChainWritersSingleChain) {
 }
 
 TEST_F(HMCOutputWritersTest, CreateMultiChainWritersFilesCreated) {
-  args.num_chains = 2;
+  args.base.num_chains = 2;
   args.save_start_params = true;
   args.save_metric = true;
   
@@ -294,7 +294,7 @@ TEST_F(HMCOutputWritersTest, CreateWritersCustomCommentPrefix) {
 }
 
 TEST_F(HMCOutputWritersTest, CreateWritersInvalidOutputDir) {
-  args.output_dir = "/root/invalid_directory_that_should_not_exist";
+  args.base.output_dir = "/root/invalid_directory_that_should_not_exist";
   
   std::string model_name = "error_test";
   

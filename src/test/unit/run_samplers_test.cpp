@@ -27,8 +27,8 @@ protected:
     model_ = std::make_unique<bernoulli_model_namespace::bernoulli_model>(*data_context, 12345);
     
     // Setup minimal arguments for fast testing
-    args_.num_chains = 1;
-    args_.random_seed = 12345;
+    args_.base.num_chains = 1;
+    args_.base.model.random_seed = 12345;
     args_.metric_type = stan3::metric_t::UNIT_E;  // Fastest option
     args_.num_warmup = 10;    // Very small for testing
     args_.num_samples = 10;   // Very small for testing
@@ -36,10 +36,10 @@ protected:
     args_.max_depth = 5;      // Small for speed
     args_.delta = 0.8;
     args_.refresh = 0;        // No progress messages
-    args_.output_dir = temp_dir_.string();
+    args_.base.output_dir = temp_dir_.string();
     
     // Create contexts
-    for (size_t i = 0; i < args_.num_chains; ++i) {
+    for (size_t i = 0; i < args_.base.num_chains; ++i) {
       init_contexts_.push_back(stan3::read_json_data(""));
       metric_contexts_.push_back(stan3::read_json_data(""));
     }
@@ -69,7 +69,7 @@ protected:
 };
 
 TEST_F(RunSamplersTest, RunSamplers_SingleChain_UnitE) {
-  args_.num_chains = 1;
+  args_.base.num_chains = 1;
   args_.metric_type = stan3::metric_t::UNIT_E;
   
   // Resize contexts and writers for single chain
@@ -87,7 +87,7 @@ TEST_F(RunSamplersTest, RunSamplers_SingleChain_UnitE) {
 }
 
 TEST_F(RunSamplersTest, RunSamplers_SingleChain_DiagE) {
-  args_.num_chains = 1;
+  args_.base.num_chains = 1;
   args_.metric_type = stan3::metric_t::DIAG_E;
   
   init_contexts_.resize(1);
@@ -101,7 +101,7 @@ TEST_F(RunSamplersTest, RunSamplers_SingleChain_DiagE) {
 }
 
 TEST_F(RunSamplersTest, RunSamplers_MultipleChains) {
-  args_.num_chains = 2;
+  args_.base.num_chains = 2;
   args_.metric_type = stan3::metric_t::UNIT_E;
   
   // Resize contexts and writers for multiple chains
@@ -132,7 +132,7 @@ TEST_F(RunSamplersTest, SamplerRunner_Construction) {
 
 TEST_F(RunSamplersTest, RunSamplers_MinimalSampling) {
   // Test with absolute minimal sampling to ensure basic functionality
-  args_.num_chains = 1;
+  args_.base.num_chains = 1;
   args_.num_warmup = 1;
   args_.num_samples = 1;
   args_.metric_type = stan3::metric_t::UNIT_E;
@@ -148,7 +148,7 @@ TEST_F(RunSamplersTest, RunSamplers_MinimalSampling) {
 }
 
 TEST_F(RunSamplersTest, RunSamplers_WithNullableWriters) {
-  args_.num_chains = 1;
+  args_.base.num_chains = 1;
   args_.save_start_params = false;  // This should make start_params_writer null
   args_.save_diagnostics = false;   // This should make diagnostics_writer null
   args_.save_metric = false;        // This should make metric_writer null

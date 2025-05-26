@@ -19,15 +19,15 @@ protected:
     model_ = std::make_unique<bernoulli_model_namespace::bernoulli_model>(*data_context, 12345);
     
     // Setup basic arguments
-    args_.num_chains = 2;
-    args_.random_seed = 12345;
+    args_.base.num_chains = 2;
+    args_.base.model.random_seed = 12345;
     args_.metric_type = stan3::metric_t::DIAG_E;
     args_.stepsize = 1.0;
     args_.max_depth = 10;
     args_.delta = 0.8;
     
     // Create empty init contexts (use default initialization)
-    for (size_t i = 0; i < args_.num_chains; ++i) {
+    for (size_t i = 0; i < args_.base.num_chains; ++i) {
       init_contexts_.push_back(stan3::read_json_data(""));
       metric_contexts_.push_back(stan3::read_json_data(""));
       init_writers_.push_back(nullptr);
@@ -55,9 +55,9 @@ TEST_F(LoadSamplersTest, CreateSamplers_DiagE) {
   // but we can verify it doesn't throw
   EXPECT_NO_THROW({
     std::visit([this](auto& config) {
-      EXPECT_EQ(config.samplers.size(), args_.num_chains);
-      EXPECT_EQ(config.rngs.size(), args_.num_chains);
-      EXPECT_EQ(config.init_params.size(), args_.num_chains);
+      EXPECT_EQ(config.samplers.size(), args_.base.num_chains);
+      EXPECT_EQ(config.rngs.size(), args_.base.num_chains);
+      EXPECT_EQ(config.init_params.size(), args_.base.num_chains);
     }, sampler_configs);
   });
 }
@@ -70,9 +70,9 @@ TEST_F(LoadSamplersTest, CreateSamplers_UnitE) {
                                                  metric_contexts_, *logger_, init_writers_);
     
     std::visit([this](auto& config) {
-      EXPECT_EQ(config.samplers.size(), args_.num_chains);
-      EXPECT_EQ(config.rngs.size(), args_.num_chains);
-      EXPECT_EQ(config.init_params.size(), args_.num_chains);
+      EXPECT_EQ(config.samplers.size(), args_.base.num_chains);
+      EXPECT_EQ(config.rngs.size(), args_.base.num_chains);
+      EXPECT_EQ(config.init_params.size(), args_.base.num_chains);
     }, sampler_configs);
   });
 }
@@ -85,9 +85,9 @@ TEST_F(LoadSamplersTest, CreateSamplers_DenseE) {
                                                  metric_contexts_, *logger_, init_writers_);
     
     std::visit([this](auto& config) {
-      EXPECT_EQ(config.samplers.size(), args_.num_chains);
-      EXPECT_EQ(config.rngs.size(), args_.num_chains);
-      EXPECT_EQ(config.init_params.size(), args_.num_chains);
+      EXPECT_EQ(config.samplers.size(), args_.base.num_chains);
+      EXPECT_EQ(config.rngs.size(), args_.base.num_chains);
+      EXPECT_EQ(config.init_params.size(), args_.base.num_chains);
     }, sampler_configs);
   });
 }
@@ -105,12 +105,12 @@ TEST_F(LoadSamplersTest, LoadSamplers_DiagE_CorrectSizes) {
   auto config = stan3::load_samplers<stan3::metric_t::DIAG_E>(
     *model_, args_, init_contexts_, metric_contexts_, *logger_, init_writers_);
   
-  EXPECT_EQ(config.samplers.size(), args_.num_chains);
-  EXPECT_EQ(config.rngs.size(), args_.num_chains);
-  EXPECT_EQ(config.init_params.size(), args_.num_chains);
+  EXPECT_EQ(config.samplers.size(), args_.base.num_chains);
+  EXPECT_EQ(config.rngs.size(), args_.base.num_chains);
+  EXPECT_EQ(config.init_params.size(), args_.base.num_chains);
   
   // Check that init_params have the right size for each chain
-  for (size_t i = 0; i < args_.num_chains; ++i) {
+  for (size_t i = 0; i < args_.base.num_chains; ++i) {
     EXPECT_EQ(config.init_params[i].size(), model_->num_params_r());
   }
 }
@@ -119,17 +119,17 @@ TEST_F(LoadSamplersTest, LoadSamplers_UnitE_CorrectSizes) {
   auto config = stan3::load_samplers<stan3::metric_t::UNIT_E>(
     *model_, args_, init_contexts_, metric_contexts_, *logger_, init_writers_);
   
-  EXPECT_EQ(config.samplers.size(), args_.num_chains);
-  EXPECT_EQ(config.rngs.size(), args_.num_chains);
-  EXPECT_EQ(config.init_params.size(), args_.num_chains);
+  EXPECT_EQ(config.samplers.size(), args_.base.num_chains);
+  EXPECT_EQ(config.rngs.size(), args_.base.num_chains);
+  EXPECT_EQ(config.init_params.size(), args_.base.num_chains);
   
-  for (size_t i = 0; i < args_.num_chains; ++i) {
+  for (size_t i = 0; i < args_.base.num_chains; ++i) {
     EXPECT_EQ(config.init_params[i].size(), model_->num_params_r());
   }
 }
 
 TEST_F(LoadSamplersTest, LoadSamplers_SingleChain) {
-  args_.num_chains = 1;
+  args_.base.num_chains = 1;
   
   // Resize contexts for single chain
   init_contexts_.resize(1);

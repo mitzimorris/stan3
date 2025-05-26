@@ -254,6 +254,7 @@ inline bool parse_hmc_args(int argc, char** argv, hmc_nuts_args& args, std::stri
   CLI::App app{"Stan3 HMC Sampler"};
   setup_model_options(app, args.base.model);
   setup_init_options(app, args.base.init);
+  setup_inference_options(app, args.base);
   
   // Add HMC-specific options
   auto hmc_opts = app.add_option_group("HMC Options");
@@ -372,7 +373,8 @@ inline bool parse_hmc_args(int argc, char** argv, hmc_nuts_args& args, std::stri
     
     return true;
   } catch (const CLI::ParseError& e) {
-    error_msg = "HMC argument parsing failed: " + std::to_string(e.get_exit_code());
+    error_msg = "HMC argument parsing failed: " + std::to_string(e.get_exit_code()) + 
+      " (" + e.get_name() + "): " + e.what();
     return false;
   }
 }
@@ -499,7 +501,6 @@ inline CLI::App* setup_backward_compatible_cli(CLI::App& app, hmc_nuts_args& hmc
 inline void finalize_hmc_arguments(hmc_nuts_args& args) {
   if (args.base.output_dir.empty()) {
     args.base.output_dir = create_temp_output_dir();
-    std::cout << "created tmp dir " << args.base.output_dir << std::endl;
   }
 }
 
