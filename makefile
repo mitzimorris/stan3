@@ -1,12 +1,6 @@
 ##
-# CmdStan users: if you need to customize make options,
-#   you should add variables to a new file called
-#   make/local (no file extension)
-#
-# A typical option might be:
-#   CXX = clang++
-#
-# Users should only need to set these variables:
+#   Use file make/local to customize options, e.g.
+#   
 # - CXX: The compiler to use. Expecting g++ or clang++.
 # - O: Optimization level. Valid values are {s, 0, 1, 2, 3}.
 #      Default is 3.
@@ -16,16 +10,12 @@
 # The default target of this Makefile is...
 help:
 
-
-
-
 STAN ?= stan/
 MATH ?= $(STAN)lib/stan_math/
 RAPIDJSON ?= $(STAN)lib/rapidjson_1.1.0/
 CLI11 ?= lib/CLI11-1.9.1/
 
 -include make/local                       # user-defined variables
--include make/tests
 
 INC_FIRST ?= -I src -I $(STAN)src -I $(RAPIDJSON) -I $(CLI11)
 
@@ -149,6 +139,8 @@ include $(MATH)make/dependencies
 include $(MATH)make/libraries
 include make/stanc
 include make/program
+include make/tests
+-include make/shared_library
 
 STAN3_VERSION := 0.alpha
 
